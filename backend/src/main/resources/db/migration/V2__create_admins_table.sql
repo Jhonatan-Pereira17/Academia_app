@@ -1,0 +1,4 @@
+CREATE TABLE admins (
+    id BIGINT PRIMARY KEY REFERENCES users(id),
+    name VARCHAR(255) NOT NULL
+);
