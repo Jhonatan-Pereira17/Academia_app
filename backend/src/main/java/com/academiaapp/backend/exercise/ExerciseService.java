@@ -5,6 +5,7 @@ import com.academiaapp.backend.personal.PersonalRepository;
 import com.academiaapp.backend.user.Role;
 import com.academiaapp.backend.user.User;
 import com.academiaapp.backend.user.UserRepository;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,8 +28,7 @@ public class ExerciseService {
 
     @Transactional
     public ExerciseResponseDTO create(String requesterEmail, CreateExerciseRequest request) {
-        User requester = userRepository.findByEmail(requesterEmail)
-                .orElseThrow(() -> new IllegalStateException("Usuário autenticado não encontrado"));
+        User requester = findUser(requesterEmail);
 
         Personal creator = null;
         if (requester.getRole() == Role.PERSONAL) {
@@ -64,8 +64,54 @@ public class ExerciseService {
 
     @Transactional(readOnly = true)
     public ExerciseResponseDTO findById(Long id) {
-        Exercise exercise = exerciseRepository.findById(id)
-                .orElseThrow(() -> new ExerciseNotFoundException(id));
+        return ExerciseResponseDTO.fromEntity(findExercise(id));
+    }
+
+    @Transactional
+    public ExerciseResponseDTO update(String requesterEmail, Long id, UpdateExerciseRequest request) {
+        User requester = findUser(requesterEmail);
+        Exercise exercise = findExercise(id);
+        checkCanModify(requester, exercise);
+
+        exercise.setName(request.name());
+        exercise.setMuscleGroup(request.muscleGroup());
+        exercise.setPrimaryMuscle(request.primaryMuscle());
+        exercise.setSecondaryMuscles(request.secondaryMuscles());
+        exercise.setEquipment(request.equipment());
+        exercise.setDescription(request.description());
+        exercise.setInstructions(request.instructions());
+        exercise.setImageUrl(request.imageUrl());
+
         return ExerciseResponseDTO.fromEntity(exercise);
+    }
+
+    @Transactional
+    public void delete(String requesterEmail, Long id) {
+        User requester = findUser(requesterEmail);
+        Exercise exercise = findExercise(id);
+        checkCanModify(requester, exercise);
+
+        exerciseRepository.delete(exercise);
+    }
+
+    private void checkCanModify(User requester, Exercise exercise) {
+        boolean isAdmin = requester.getRole() == Role.ADMIN;
+        boolean isOwnerPersonal = requester.getRole() == Role.PERSONAL
+                && exercise.getCreatedBy() != null
+                && exercise.getCreatedBy().getId().equals(requester.getId());
+
+        if (!isAdmin && !isOwnerPersonal) {
+            throw new AccessDeniedException("Você não pode alterar este exercício");
+        }
+    }
+
+    private User findUser(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalStateException("Usuário autenticado não encontrado"));
+    }
+
+    private Exercise findExercise(Long id) {
+        return exerciseRepository.findById(id)
+                .orElseThrow(() -> new ExerciseNotFoundException(id));
     }
 }
