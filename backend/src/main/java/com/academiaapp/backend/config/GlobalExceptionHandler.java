@@ -4,6 +4,7 @@ import com.academiaapp.backend.exercise.ExerciseNotFoundException;
 import com.academiaapp.backend.student.StudentNotFoundException;
 import com.academiaapp.backend.user.EmailAlreadyInUseException;
 import com.academiaapp.backend.workout.WorkoutNotFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -19,6 +20,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EmailAlreadyInUseException.class)
     public ResponseEntity<Map<String, Object>> handleEmailInUse(EmailAlreadyInUseException ex) {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
+        return buildResponse(HttpStatus.CONFLICT,
+                "A operação não pode ser concluída: o registro está em uso ou conflita com outro existente");
     }
 
     @ExceptionHandler(BadRequestException.class)

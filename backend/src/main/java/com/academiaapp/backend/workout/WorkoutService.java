@@ -43,9 +43,74 @@ public class WorkoutService {
         workout.setCreatedBy(requester);
         workout.setName(request.name());
         workout.setDescription(request.description());
+        fillExercises(workout, request.exercises());
 
+        workoutRepository.save(workout);
+        return WorkoutResponseDTO.fromEntity(workout);
+    }
+
+    @Transactional(readOnly = true)
+    public List<WorkoutResponseDTO> list(String requesterEmail, boolean includeArchived) {
+        User requester = findUser(requesterEmail);
+
+        List<Workout> workouts = switch (requester.getRole()) {
+            case ADMIN -> workoutRepository.findAllByOrderByCreatedAtDesc();
+            case PERSONAL -> workoutRepository.findByStudentPersonalIdOrderByCreatedAtDesc(requester.getId());
+            case STUDENT -> workoutRepository.findByStudentIdOrderByCreatedAtDesc(requester.getId());
+        };
+
+        return workouts.stream()
+                .filter(workout -> includeArchived || workout.isActive())
+                .map(WorkoutResponseDTO::fromEntity)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public WorkoutResponseDTO findById(String requesterEmail, Long id) {
+        User requester = findUser(requesterEmail);
+        Workout workout = findWorkout(id);
+        checkCanView(requester, workout);
+
+        return WorkoutResponseDTO.fromEntity(workout);
+    }
+
+    @Transactional
+    public WorkoutResponseDTO update(String requesterEmail, Long id, UpdateWorkoutRequest request) {
+        User requester = findUser(requesterEmail);
+        Workout workout = findWorkout(id);
+        checkCanModify(requester, workout);
+
+        workout.setName(request.name());
+        workout.setDescription(request.description());
+        workout.getExercises().clear();
+        fillExercises(workout, request.exercises());
+
+        workoutRepository.saveAndFlush(workout);
+        return WorkoutResponseDTO.fromEntity(workout);
+    }
+
+    @Transactional
+    public WorkoutResponseDTO setActive(String requesterEmail, Long id, boolean active) {
+        User requester = findUser(requesterEmail);
+        Workout workout = findWorkout(id);
+        checkCanModify(requester, workout);
+
+        workout.setActive(active);
+        return WorkoutResponseDTO.fromEntity(workout);
+    }
+
+    @Transactional
+    public void delete(String requesterEmail, Long id) {
+        User requester = findUser(requesterEmail);
+        Workout workout = findWorkout(id);
+        checkCanModify(requester, workout);
+
+        workoutRepository.delete(workout);
+    }
+
+    private void fillExercises(Workout workout, List<CreateWorkoutRequest.ExerciseItem> items) {
         int exerciseOrder = 1;
-        for (CreateWorkoutRequest.ExerciseItem item : request.exercises()) {
+        for (CreateWorkoutRequest.ExerciseItem item : items) {
             Exercise exercise = exerciseRepository.findById(item.exerciseId())
                     .orElseThrow(() -> new BadRequestException("Exercício não encontrado: " + item.exerciseId()));
 
@@ -70,35 +135,6 @@ public class WorkoutService {
 
             workout.getExercises().add(workoutExercise);
         }
-
-        workoutRepository.save(workout);
-        return WorkoutResponseDTO.fromEntity(workout);
-    }
-
-    @Transactional(readOnly = true)
-    public List<WorkoutResponseDTO> list(String requesterEmail) {
-        User requester = findUser(requesterEmail);
-
-        List<Workout> workouts = switch (requester.getRole()) {
-            case ADMIN -> workoutRepository.findAllByOrderByCreatedAtDesc();
-            case PERSONAL -> workoutRepository.findByStudentPersonalIdOrderByCreatedAtDesc(requester.getId());
-            case STUDENT -> workoutRepository.findByStudentIdOrderByCreatedAtDesc(requester.getId());
-        };
-
-        return workouts.stream()
-                .map(WorkoutResponseDTO::fromEntity)
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public WorkoutResponseDTO findById(String requesterEmail, Long id) {
-        User requester = findUser(requesterEmail);
-
-        Workout workout = workoutRepository.findById(id)
-                .orElseThrow(() -> new WorkoutNotFoundException(id));
-        checkCanView(requester, workout);
-
-        return WorkoutResponseDTO.fromEntity(workout);
     }
 
     private Student resolveTargetStudent(User requester, Long requestedStudentId) {
@@ -135,8 +171,25 @@ public class WorkoutService {
         }
     }
 
+    private void checkCanModify(User requester, Workout workout) {
+        boolean isOwnerPersonal = requester.getRole() == Role.PERSONAL
+                && workout.getStudent().getPersonal().getId().equals(requester.getId());
+        boolean isCreatorStudent = requester.getRole() == Role.STUDENT
+                && workout.getStudent().getId().equals(requester.getId())
+                && workout.getCreatedBy().getId().equals(requester.getId());
+
+        if (!isOwnerPersonal && !isCreatorStudent) {
+            throw new AccessDeniedException("Você não pode alterar este treino");
+        }
+    }
+
     private User findUser(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalStateException("Usuário autenticado não encontrado"));
+    }
+
+    private Workout findWorkout(Long id) {
+        return workoutRepository.findById(id)
+                .orElseThrow(() -> new WorkoutNotFoundException(id));
     }
 }
