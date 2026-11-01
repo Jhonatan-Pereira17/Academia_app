@@ -6,5 +6,9 @@ import java.util.List;
 
 public interface WorkoutRepository extends JpaRepository<Workout, Long> {
 
+    List<Workout> findAllByOrderByCreatedAtDesc();
+
     List<Workout> findByStudentIdOrderByCreatedAtDesc(Long studentId);
+
+    List<Workout> findByStudentPersonalIdOrderByCreatedAtDesc(Long personalId);
 }

@@ -3,6 +3,7 @@ package com.academiaapp.backend.config;
 import com.academiaapp.backend.exercise.ExerciseNotFoundException;
 import com.academiaapp.backend.student.StudentNotFoundException;
 import com.academiaapp.backend.user.EmailAlreadyInUseException;
+import com.academiaapp.backend.workout.WorkoutNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -20,6 +21,11 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
     }
 
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<Map<String, Object>> handleBadRequest(BadRequestException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
     @ExceptionHandler(StudentNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleStudentNotFound(StudentNotFoundException ex) {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
@@ -27,6 +33,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ExerciseNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleExerciseNotFound(ExerciseNotFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(WorkoutNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleWorkoutNotFound(WorkoutNotFoundException ex) {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
