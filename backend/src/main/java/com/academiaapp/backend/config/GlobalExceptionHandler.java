@@ -4,6 +4,7 @@ import com.academiaapp.backend.exercise.ExerciseNotFoundException;
 import com.academiaapp.backend.student.StudentNotFoundException;
 import com.academiaapp.backend.user.EmailAlreadyInUseException;
 import com.academiaapp.backend.workout.WorkoutNotFoundException;
+import com.academiaapp.backend.workoutsession.WorkoutSessionNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -45,6 +46,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(WorkoutNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleWorkoutNotFound(WorkoutNotFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(WorkoutSessionNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleSessionNotFound(WorkoutSessionNotFoundException ex) {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
