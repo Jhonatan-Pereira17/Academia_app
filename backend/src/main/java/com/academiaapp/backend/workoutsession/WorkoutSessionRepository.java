@@ -1,6 +1,9 @@
 package com.academiaapp.backend.workoutsession;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -10,5 +13,17 @@ public interface WorkoutSessionRepository extends JpaRepository<WorkoutSession, 
 
     Optional<WorkoutSession> findByStudentIdAndClientId(Long studentId, UUID clientId);
 
-    List<WorkoutSession> findByStudentIdOrderByStartedAtDesc(Long studentId);
+    List<WorkoutSession> findByStudentIdOrderByStartedAtDesc(Long studentId, Pageable pageable);
+
+    List<WorkoutSession> findByStudentPersonalIdOrderByStartedAtDesc(Long personalId, Pageable pageable);
+
+    List<WorkoutSession> findAllByOrderByStartedAtDesc(Pageable pageable);
+
+    @Query("select s from WorkoutSession s "
+            + "where s.student.id = :studentId "
+            + "and exists (select l.id from ExerciseLog l where l.session = s and l.exercise.id = :exerciseId) "
+            + "order by s.startedAt desc")
+    List<WorkoutSession> findSessionsWithExercise(@Param("studentId") Long studentId,
+            @Param("exerciseId") Long exerciseId,
+            Pageable pageable);
 }
