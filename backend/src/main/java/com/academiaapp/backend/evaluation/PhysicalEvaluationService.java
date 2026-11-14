@@ -68,11 +68,38 @@ public class PhysicalEvaluationService {
     @Transactional(readOnly = true)
     public PhysicalEvaluationResponseDTO findById(String requesterEmail, Long id) {
         User requester = findUser(requesterEmail);
-        PhysicalEvaluation evaluation = evaluationRepository.findById(id)
-                .orElseThrow(() -> new PhysicalEvaluationNotFoundException(id));
+        PhysicalEvaluation evaluation = findEvaluation(id);
         checkCanView(requester, evaluation);
 
         return PhysicalEvaluationResponseDTO.fromEntity(evaluation);
+    }
+
+    @Transactional
+    public PhysicalEvaluationResponseDTO update(String requesterEmail, Long id,
+            CreatePhysicalEvaluationRequest request) {
+        User requester = findUser(requesterEmail);
+        PhysicalEvaluation evaluation = findEvaluation(id);
+        checkCanModify(requester, evaluation);
+
+        if (!evaluation.getStudent().getId().equals(request.studentId())) {
+            throw new BadRequestException("Não é possível trocar o aluno de uma avaliação");
+        }
+        if (!hasAnyMeasurement(request)) {
+            throw new BadRequestException("Informe pelo menos uma medida");
+        }
+
+        apply(evaluation, request);
+        evaluationRepository.saveAndFlush(evaluation);
+        return PhysicalEvaluationResponseDTO.fromEntity(evaluation);
+    }
+
+    @Transactional
+    public void delete(String requesterEmail, Long id) {
+        User requester = findUser(requesterEmail);
+        PhysicalEvaluation evaluation = findEvaluation(id);
+        checkCanModify(requester, evaluation);
+
+        evaluationRepository.delete(evaluation);
     }
 
     private void apply(PhysicalEvaluation evaluation, CreatePhysicalEvaluationRequest request) {
@@ -119,8 +146,22 @@ public class PhysicalEvaluationService {
         }
     }
 
+    private void checkCanModify(User requester, PhysicalEvaluation evaluation) {
+        boolean isOwnerPersonal = requester.getRole() == Role.PERSONAL
+                && evaluation.getStudent().getPersonal().getId().equals(requester.getId());
+
+        if (!isOwnerPersonal) {
+            throw new AccessDeniedException("Você não pode alterar esta avaliação");
+        }
+    }
+
     private User findUser(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalStateException("Usuário autenticado não encontrado"));
+    }
+
+    private PhysicalEvaluation findEvaluation(Long id) {
+        return evaluationRepository.findById(id)
+                .orElseThrow(() -> new PhysicalEvaluationNotFoundException(id));
     }
 }
