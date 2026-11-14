@@ -1,5 +1,6 @@
 package com.academiaapp.backend.config;
 
+import com.academiaapp.backend.evaluation.PhysicalEvaluationNotFoundException;
 import com.academiaapp.backend.exercise.ExerciseNotFoundException;
 import com.academiaapp.backend.student.StudentNotFoundException;
 import com.academiaapp.backend.user.EmailAlreadyInUseException;
@@ -51,6 +52,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(WorkoutSessionNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleSessionNotFound(WorkoutSessionNotFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(PhysicalEvaluationNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleEvaluationNotFound(PhysicalEvaluationNotFoundException ex) {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
